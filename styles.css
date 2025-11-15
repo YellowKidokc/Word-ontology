@@ -1,0 +1,124 @@
+/* Epistemic Tagger Plugin Styles */
+
+/* Highlight base styles */
+.epistemic-highlight {
+    cursor: help;
+    border-radius: 2px;
+    transition: opacity 0.2s ease;
+}
+
+.epistemic-highlight:hover {
+    opacity: 0.8;
+}
+
+/* Icon styles */
+.epistemic-icon {
+    font-weight: bold;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* Profile-specific highlight colors */
+/* Personal Research Profile */
+.epistemic-axiom {
+    border-color: #FF6B6B;
+}
+
+.epistemic-canonical {
+    border-color: #4ECDC4;
+}
+
+.epistemic-evidence {
+    border-color: #95E1D3;
+}
+
+.epistemic-coherence {
+    border-color: #F38181;
+}
+
+.epistemic-reference {
+    border-color: #AA96DA;
+}
+
+/* YouTube Content Profile */
+.epistemic-key_point {
+    border-color: #FF6B6B;
+}
+
+.epistemic-story {
+    border-color: #95E1D3;
+}
+
+.epistemic-cta {
+    border-color: #F38181;
+}
+
+/* AI Training Profile */
+.epistemic-ground_truth {
+    border-color: #00D9FF;
+}
+
+.epistemic-ambiguous {
+    border-color: #FFB84D;
+}
+
+.epistemic-contradictory {
+    border-color: #FF4D4D;
+}
+
+.epistemic-high_confidence {
+    border-color: #4DFF88;
+}
+
+/* Settings page styles */
+.epistemic-profile-info {
+    margin: 1em 0;
+    padding: 1em;
+    background-color: var(--background-secondary);
+    border-radius: 4px;
+}
+
+.epistemic-profile-info ul {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+
+.epistemic-profile-info li {
+    margin: 0.3em 0;
+}
+
+/* Context menu styles */
+.menu-item[data-section="epistemic"] {
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Tooltip styles */
+.epistemic-tooltip {
+    position: absolute;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 0.5em;
+    font-size: 0.9em;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.epistemic-tooltip-type {
+    font-weight: bold;
+    margin-bottom: 0.3em;
+}
+
+.epistemic-tooltip-meta {
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+/* Dark mode adjustments */
+.theme-dark .epistemic-highlight {
+    opacity: 0.8;
+}
+
+.theme-dark .epistemic-highlight:hover {
+    opacity: 1;
+}
