@@ -1,0 +1,9 @@
+{
+  "postgresUrl": "postgresql://postgres:Moss9pep28$@192.168.1.93:5432/theophysics",
+  "activeProfile": "personal",
+  "showHighlights": true,
+  "showIcons": true,
+  "highlightOpacity": 0.3,
+  "anthropicApiKey": "",
+  "username": "user"
+}
