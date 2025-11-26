@@ -17,6 +17,14 @@ import { classifyWithAI, createClassification, validateClassification } from './
 import { EpistemicDecorationPlugin } from './ui/decorations';
 import { processDocumentWithAI, processAndClassifyDocument } from './document-processor';
 import { EditorView } from '@codemirror/view';
+import {
+    readSemanticBlockFromFile,
+    writeSemanticBlockToFile,
+    classificationToAnnotation,
+    upsertAnnotation,
+    getLineNumbers
+} from './semantic-block';
+import { generateMasterDashboards, DEFAULT_DASHBOARD_CONFIG } from './master-dashboard';
 
 export default class EpistemicTaggerPlugin extends Plugin {
     settings: PluginSettings;
@@ -206,6 +214,25 @@ export default class EpistemicTaggerPlugin extends Plugin {
             // Save to database
             const id = await this.db.saveClassification(classification);
             classification.id = id;
+
+            // DUAL STORAGE: Also write to semantic block in the file
+            try {
+                // Read the current semantic block (or create new one if doesn't exist)
+                const semanticBlock = await readSemanticBlockFromFile(this.app.vault, file);
+                
+                // Convert the classification to an annotation with line numbers
+                const annotation = classificationToAnnotation(classification, fullText);
+                
+                // Add or update the annotation in the semantic block
+                upsertAnnotation(semanticBlock, annotation);
+                
+                // Write the updated semantic block back to the file
+                await writeSemanticBlockToFile(this.app.vault, file, semanticBlock);
+            } catch (blockError) {
+                console.error('Failed to write semantic block:', blockError);
+                // Don't fail the whole operation if semantic block write fails
+                // The classification is still in PostgreSQL
+            }
 
             new Notice(`✓ Classified as ${typeName}`);
 
@@ -536,6 +563,24 @@ export default class EpistemicTaggerPlugin extends Plugin {
                 } catch (error) {
                     console.error('Export failed:', error);
                     new Notice('Export failed. Check console for details.');
+                }
+            }
+        });
+
+        // Generate Master Dashboards
+        this.addCommand({
+            id: 'generate-master-dashboards',
+            name: 'Generate Master Dashboards',
+            callback: async () => {
+                try {
+                    await generateMasterDashboards(
+                        this.app.vault,
+                        this.db,
+                        DEFAULT_DASHBOARD_CONFIG
+                    );
+                } catch (error) {
+                    console.error('Dashboard generation failed:', error);
+                    new Notice('Dashboard generation failed. Check console for details.');
                 }
             }
         });

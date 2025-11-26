@@ -256,6 +256,7 @@ export class DatabaseService {
             const result = await this.pool.query(`
                 SELECT
                     s.id, s.content, s.start_offset, s.end_offset,
+                    s.source_file, s.bundle_profile,
                     t.name as type, t.color, t.icon,
                     st.confidence, st.tagged_by, st.tagged_at, st.notes
                 FROM epistemic.statements s
@@ -268,6 +269,31 @@ export class DatabaseService {
             return result.rows;
         } catch (error) {
             console.error('Failed to get classifications:', error);
+            throw error;
+        }
+    }
+
+    async getAllClassifications(): Promise<DatabaseClassification[]> {
+        if (!this.pool) {
+            throw new Error('Database pool not initialized');
+        }
+
+        try {
+            const result = await this.pool.query(`
+                SELECT
+                    s.id, s.content, s.start_offset, s.end_offset,
+                    s.source_file, s.bundle_profile,
+                    t.name as type, t.color, t.icon,
+                    st.confidence, st.tagged_by, st.tagged_at, st.notes
+                FROM epistemic.statements s
+                JOIN epistemic.statement_types st ON s.id = st.statement_id
+                JOIN epistemic.types t ON st.type_id = t.id
+                ORDER BY s.source_file, s.start_offset
+            `);
+
+            return result.rows;
+        } catch (error) {
+            console.error('Failed to get all classifications:', error);
             throw error;
         }
     }
