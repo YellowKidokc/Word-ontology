@@ -9,12 +9,13 @@ import {
     EditorPosition
 } from 'obsidian';
 
-import { PluginSettings, DEFAULT_SETTINGS, DatabaseClassification } from './types';
+import { PluginSettings, DEFAULT_SETTINGS, DatabaseClassification, CustomPrompt } from './types';
 import { EpistemicTaggerSettingTab } from './settings';
 import { DatabaseService } from './database';
-import { BUNDLE_PROFILES, getActiveProfile } from './profiles';
+import { BUNDLE_PROFILES, getActiveProfile, getAllProfiles } from './profiles';
 import { classifyWithAI, createClassification, validateClassification } from './classification';
 import { EpistemicDecorationPlugin } from './ui/decorations';
+import { processDocumentWithAI, processAndClassifyDocument } from './document-processor';
 import { EditorView } from '@codemirror/view';
 
 export default class EpistemicTaggerPlugin extends Plugin {
@@ -87,40 +88,68 @@ export default class EpistemicTaggerPlugin extends Plugin {
 
     private handleEditorMenu(menu: Menu, editor: Editor, view: MarkdownView | MarkdownFileInfo) {
         const selection = editor.getSelection();
-        if (!selection || selection.trim() === '') {
-            return;
-        }
+        const activeProfile = getActiveProfile(this.settings.activeProfile, this.settings.customProfiles);
 
-        const activeProfile = getActiveProfile(this.settings.activeProfile);
-
-        menu.addItem((item) => {
-            item
-                .setTitle('Classify Selection As...')
-                .setIcon('tag')
-                .setSection('epistemic');
-
-            item.onClick(() => {
-                this.showClassificationMenu(editor, view, selection);
-            });
-        });
-
-        // Add AI suggestion option if API key is configured
-        if (this.settings.anthropicApiKey) {
+        // Selection-based actions
+        if (selection && selection.trim() !== '') {
             menu.addItem((item) => {
                 item
-                    .setTitle('Suggest Classification (AI)')
-                    .setIcon('sparkles')
+                    .setTitle('Classify Selection As...')
+                    .setIcon('tag')
+                    .setSection('epistemic');
+
+                item.onClick(() => {
+                    this.showClassificationMenu(editor, view, selection);
+                });
+            });
+
+            // Add AI suggestion option if API key is configured
+            if (this.settings.anthropicApiKey) {
+                menu.addItem((item) => {
+                    item
+                        .setTitle('Suggest Classification (AI)')
+                        .setIcon('sparkles')
+                        .setSection('epistemic');
+
+                    item.onClick(async () => {
+                        await this.suggestClassificationWithAI(editor, view, selection);
+                    });
+                });
+            }
+        }
+
+        // Document-level actions (always available)
+        if (this.settings.anthropicApiKey) {
+            // Auto-classify entire document
+            menu.addItem((item) => {
+                item
+                    .setTitle('Auto-Classify Document (AI)')
+                    .setIcon('wand')
                     .setSection('epistemic');
 
                 item.onClick(async () => {
-                    await this.suggestClassificationWithAI(editor, view, selection);
+                    await this.autoClassifyDocument(editor, view);
                 });
             });
+
+            // Custom prompts submenu
+            if (this.settings.customPrompts && this.settings.customPrompts.length > 0) {
+                menu.addItem((item) => {
+                    item
+                        .setTitle('Process Document With...')
+                        .setIcon('brain')
+                        .setSection('epistemic');
+
+                    item.onClick(() => {
+                        this.showCustomPromptsMenu(editor, view);
+                    });
+                });
+            }
         }
     }
 
     private async showClassificationMenu(editor: Editor, view: MarkdownView | MarkdownFileInfo, selection: string) {
-        const activeProfile = getActiveProfile(this.settings.activeProfile);
+        const activeProfile = getActiveProfile(this.settings.activeProfile, this.settings.customProfiles);
         const menu = new Menu();
 
         menu.setNoIcon();
@@ -193,7 +222,7 @@ export default class EpistemicTaggerPlugin extends Plugin {
         view: MarkdownView | MarkdownFileInfo,
         selection: string
     ) {
-        const activeProfile = getActiveProfile(this.settings.activeProfile);
+        const activeProfile = getActiveProfile(this.settings.activeProfile, this.settings.customProfiles);
 
         new Notice('Asking AI for suggestion...');
 
@@ -232,6 +261,129 @@ export default class EpistemicTaggerPlugin extends Plugin {
         });
 
         menu.showAtMouseEvent(window.event as MouseEvent);
+    }
+
+    private async autoClassifyDocument(editor: Editor, view: MarkdownView | MarkdownFileInfo) {
+        const file = view.file;
+        if (!file) {
+            new Notice('No active file');
+            return;
+        }
+
+        const activeProfile = getActiveProfile(this.settings.activeProfile, this.settings.customProfiles);
+        const documentContent = editor.getValue();
+
+        new Notice('Analyzing document with AI...');
+
+        const classifications = await processAndClassifyDocument(
+            documentContent,
+            activeProfile,
+            this.settings.anthropicApiKey || ''
+        );
+
+        if (!classifications || classifications.length === 0) {
+            new Notice('No classifications found');
+            return;
+        }
+
+        // Save all classifications
+        let savedCount = 0;
+        for (const item of classifications) {
+            try {
+                const classification = createClassification(
+                    item.text,
+                    item.category,
+                    this.settings.activeProfile,
+                    file.path,
+                    item.startOffset,
+                    item.endOffset,
+                    this.settings.username,
+                    0.8 // AI confidence
+                );
+
+                if (validateClassification(classification)) {
+                    const id = await this.db.saveClassification(classification);
+                    classification.id = id;
+                    savedCount++;
+                }
+            } catch (error) {
+                console.error('Failed to save classification:', error);
+            }
+        }
+
+        new Notice(`✓ Auto-classified ${savedCount} sections`);
+        await this.refreshCurrentFileDecorations();
+    }
+
+    private showCustomPromptsMenu(editor: Editor, view: MarkdownView | MarkdownFileInfo) {
+        const menu = new Menu();
+        menu.setNoIcon();
+
+        this.settings.customPrompts.forEach((prompt) => {
+            menu.addItem((item) => {
+                item.setTitle(prompt.name);
+                item.onClick(async () => {
+                    await this.processWithCustomPrompt(editor, view, prompt);
+                });
+            });
+        });
+
+        menu.showAtMouseEvent(window.event as MouseEvent);
+    }
+
+    private async processWithCustomPrompt(
+        editor: Editor,
+        view: MarkdownView | MarkdownFileInfo,
+        prompt: CustomPrompt
+    ) {
+        const activeProfile = getActiveProfile(this.settings.activeProfile, this.settings.customProfiles);
+        
+        new Notice(`Processing with: ${prompt.name}...`);
+
+        const markdownView = view instanceof MarkdownView ? view : null;
+        if (!markdownView) {
+            new Notice('This action requires a markdown view');
+            return;
+        }
+
+        const result = await processDocumentWithAI(
+            editor,
+            markdownView,
+            prompt,
+            this.settings.anthropicApiKey || '',
+            activeProfile
+        );
+
+        if (!result) {
+            return;
+        }
+
+        // Show result in a notice or modal
+        new Notice(`✓ Processing complete. Check console for full output.`, 5000);
+        console.log(`Custom Prompt Result (${prompt.name}):\n`, result);
+
+        // If prompt has a target category, optionally auto-classify
+        if (prompt.targetCategory && view.file) {
+            const fullText = editor.getValue();
+            const classification = createClassification(
+                result.substring(0, 500), // Store summary
+                prompt.targetCategory,
+                this.settings.activeProfile,
+                view.file.path,
+                0,
+                result.length,
+                this.settings.username,
+                0.7
+            );
+
+            try {
+                const id = await this.db.saveClassification(classification);
+                new Notice(`✓ Result classified as ${prompt.targetCategory}`);
+                await this.refreshCurrentFileDecorations();
+            } catch (error) {
+                console.error('Failed to save prompt result:', error);
+            }
+        }
     }
 
     private getOffsetFromPosition(text: string, pos: EditorPosition): number {
@@ -309,10 +461,13 @@ export default class EpistemicTaggerPlugin extends Plugin {
                 const menu = new Menu();
                 menu.setNoIcon();
 
-                BUNDLE_PROFILES.forEach((profile) => {
+                const allProfiles = getAllProfiles(this.settings.customProfiles);
+                
+                allProfiles.forEach((profile) => {
                     menu.addItem((item) => {
                         const isActive = profile.name === this.settings.activeProfile;
-                        item.setTitle(`${isActive ? '✓ ' : ''}${profile.displayName}`);
+                        const isCustom = this.settings.customProfiles.some(p => p.name === profile.name);
+                        item.setTitle(`${isActive ? '✓ ' : ''}${profile.displayName}${isCustom ? ' (Custom)' : ''}`);
                         item.onClick(async () => {
                             await this.switchProfile(profile.name);
                             new Notice(`Switched to ${profile.displayName} profile`);

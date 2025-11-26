@@ -37,6 +37,14 @@ export interface BundleProfile {
     categories: EpistemicType[];
 }
 
+export interface CustomPrompt {
+    id: string;
+    name: string;
+    description: string;
+    prompt: string;
+    targetCategory?: string; // Optional: auto-classify results to this category
+}
+
 export interface PluginSettings {
     postgresUrl: string;
     activeProfile: string;
@@ -45,6 +53,9 @@ export interface PluginSettings {
     highlightOpacity: number;
     anthropicApiKey?: string;
     username: string;
+    customProfiles: BundleProfile[]; // User-created profiles
+    customPrompts: CustomPrompt[]; // User-defined AI prompts
+    enableInvisibleMetadata: boolean; // Store metadata invisibly
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -54,7 +65,10 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     showIcons: true,
     highlightOpacity: 0.3,
     anthropicApiKey: '',
-    username: 'user'
+    username: 'user',
+    customProfiles: [],
+    customPrompts: [],
+    enableInvisibleMetadata: false
 };
 
 export interface DatabaseClassification {

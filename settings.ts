@@ -1,6 +1,7 @@
-import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, Modal, TextComponent, TextAreaComponent } from 'obsidian';
 import EpistemicTaggerPlugin from './main';
-import { BUNDLE_PROFILES } from './profiles';
+import { BUNDLE_PROFILES, getAllProfiles } from './profiles';
+import { BundleProfile, EpistemicType, CustomPrompt } from './types';
 
 /**
  * Settings tab for Epistemic Tagger plugin
@@ -105,8 +106,10 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
             .setName('Active Profile')
             .setDesc('Select which bundle profile to use for classifications')
             .addDropdown(dropdown => {
-                BUNDLE_PROFILES.forEach(profile => {
-                    dropdown.addOption(profile.name, profile.displayName);
+                const allProfiles = getAllProfiles(this.plugin.settings.customProfiles);
+                allProfiles.forEach(profile => {
+                    const isCustom = this.plugin.settings.customProfiles.some(p => p.name === profile.name);
+                    dropdown.addOption(profile.name, `${profile.displayName}${isCustom ? ' (Custom)' : ''}`);
                 });
                 dropdown
                     .setValue(this.plugin.settings.activeProfile)
@@ -114,12 +117,14 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
                         this.plugin.settings.activeProfile = value;
                         await this.plugin.saveSettings();
                         await this.plugin.switchProfile(value);
-                        new Notice(`Switched to ${BUNDLE_PROFILES.find(p => p.name === value)?.displayName} profile`);
+                        const profile = allProfiles.find(p => p.name === value);
+                        new Notice(`Switched to ${profile?.displayName} profile`);
                     });
             });
 
         // Display current profile info
-        const activeProfile = BUNDLE_PROFILES.find(p => p.name === this.plugin.settings.activeProfile);
+        const allProfiles = getAllProfiles(this.plugin.settings.customProfiles);
+        const activeProfile = allProfiles.find(p => p.name === this.plugin.settings.activeProfile);
         if (activeProfile) {
             const profileInfoEl = containerEl.createDiv('epistemic-profile-info');
             profileInfoEl.createEl('p', {
@@ -131,6 +136,44 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
             activeProfile.categories.forEach(cat => {
                 const li = categoriesEl.createEl('li');
                 li.innerHTML = `<span style="color: ${cat.color}">${cat.icon} ${cat.displayName}</span> - ${cat.description}`;
+            });
+        }
+
+        // Custom Profiles Management
+        containerEl.createEl('h3', { text: 'Custom Profiles' });
+        
+        new Setting(containerEl)
+            .setName('Create Custom Profile')
+            .setDesc('Create your own classification profile with custom categories')
+            .addButton(button => button
+                .setButtonText('Create Profile')
+                .onClick(() => {
+                    new CustomProfileModal(this.app, this.plugin, null, () => this.display()).open();
+                })
+            );
+
+        // List existing custom profiles
+        if (this.plugin.settings.customProfiles.length > 0) {
+            this.plugin.settings.customProfiles.forEach((profile, index) => {
+                new Setting(containerEl)
+                    .setName(profile.displayName)
+                    .setDesc(profile.description)
+                    .addButton(button => button
+                        .setButtonText('Edit')
+                        .onClick(() => {
+                            new CustomProfileModal(this.app, this.plugin, profile, () => this.display()).open();
+                        })
+                    )
+                    .addButton(button => button
+                        .setButtonText('Delete')
+                        .setWarning()
+                        .onClick(async () => {
+                            this.plugin.settings.customProfiles.splice(index, 1);
+                            await this.plugin.saveSettings();
+                            new Notice(`Deleted profile: ${profile.displayName}`);
+                            this.display();
+                        })
+                    );
             });
         }
 
@@ -211,5 +254,283 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
                     });
                 text.inputEl.type = 'password';
             });
+
+        // Custom Prompts Section
+        containerEl.createEl('h3', { text: 'Custom AI Prompts' });
+        
+        new Setting(containerEl)
+            .setName('Create Custom Prompt')
+            .setDesc('Create custom AI prompts for document processing')
+            .addButton(button => button
+                .setButtonText('Create Prompt')
+                .onClick(() => {
+                    new CustomPromptModal(this.app, this.plugin, null, () => this.display()).open();
+                })
+            );
+
+        // List existing custom prompts
+        if (this.plugin.settings.customPrompts.length > 0) {
+            this.plugin.settings.customPrompts.forEach((prompt, index) => {
+                new Setting(containerEl)
+                    .setName(prompt.name)
+                    .setDesc(prompt.description)
+                    .addButton(button => button
+                        .setButtonText('Edit')
+                        .onClick(() => {
+                            new CustomPromptModal(this.app, this.plugin, prompt, () => this.display()).open();
+                        })
+                    )
+                    .addButton(button => button
+                        .setButtonText('Delete')
+                        .setWarning()
+                        .onClick(async () => {
+                            this.plugin.settings.customPrompts.splice(index, 1);
+                            await this.plugin.saveSettings();
+                            new Notice(`Deleted prompt: ${prompt.name}`);
+                            this.display();
+                        })
+                    );
+            });
+        }
+
+        // Invisible Metadata Option
+        containerEl.createEl('h3', { text: 'Advanced Options' });
+        
+        new Setting(containerEl)
+            .setName('Enable Invisible Metadata')
+            .setDesc('Store classifications invisibly (database only, no visual indicators in editor)')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enableInvisibleMetadata)
+                .onChange(async (value) => {
+                    this.plugin.settings.enableInvisibleMetadata = value;
+                    await this.plugin.saveSettings();
+                    this.plugin.refreshDecorations();
+                    new Notice(`Invisible metadata ${value ? 'enabled' : 'disabled'}`);
+                })
+            );
+    }
+}
+
+/**
+ * Modal for creating/editing custom profiles
+ */
+class CustomProfileModal extends Modal {
+    plugin: EpistemicTaggerPlugin;
+    profile: BundleProfile | null;
+    onSave: () => void;
+    
+    constructor(app: App, plugin: EpistemicTaggerPlugin, profile: BundleProfile | null, onSave: () => void) {
+        super(app);
+        this.plugin = plugin;
+        this.profile = profile;
+        this.onSave = onSave;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+
+        contentEl.createEl('h2', { text: this.profile ? 'Edit Profile' : 'Create Profile' });
+
+        const profileData = this.profile || {
+            id: '',
+            name: '',
+            displayName: '',
+            description: '',
+            categories: []
+        };
+
+        // Profile Name
+        new Setting(contentEl)
+            .setName('Profile Name')
+            .setDesc('Internal name (lowercase, no spaces)')
+            .addText(text => text
+                .setValue(profileData.name)
+                .onChange(value => profileData.name = value.toLowerCase().replace(/\s+/g, '_'))
+            );
+
+        // Display Name
+        new Setting(contentEl)
+            .setName('Display Name')
+            .setDesc('Human-readable name')
+            .addText(text => text
+                .setValue(profileData.displayName)
+                .onChange(value => profileData.displayName = value)
+            );
+
+        // Description
+        new Setting(contentEl)
+            .setName('Description')
+            .setDesc('Brief description of this profile')
+            .addTextArea(text => text
+                .setValue(profileData.description)
+                .onChange(value => profileData.description = value)
+            );
+
+        contentEl.createEl('h3', { text: 'Categories' });
+        contentEl.createEl('p', { 
+            text: 'Add classification categories for this profile. You can add them after creating the profile.',
+            cls: 'setting-item-description'
+        });
+
+        // Save button
+        new Setting(contentEl)
+            .addButton(button => button
+                .setButtonText('Save')
+                .setCta()
+                .onClick(async () => {
+                    if (!profileData.name || !profileData.displayName) {
+                        new Notice('Please fill in all required fields');
+                        return;
+                    }
+
+                    profileData.id = profileData.name;
+
+                    if (this.profile) {
+                        // Edit existing
+                        const index = this.plugin.settings.customProfiles.findIndex(p => p.name === this.profile!.name);
+                        if (index !== -1) {
+                            this.plugin.settings.customProfiles[index] = profileData as BundleProfile;
+                        }
+                    } else {
+                        // Create new
+                        this.plugin.settings.customProfiles.push(profileData as BundleProfile);
+                    }
+
+                    await this.plugin.saveSettings();
+                    new Notice(`Profile ${this.profile ? 'updated' : 'created'}: ${profileData.displayName}`);
+                    this.close();
+                    this.onSave();
+                })
+            )
+            .addButton(button => button
+                .setButtonText('Cancel')
+                .onClick(() => this.close())
+            );
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
+
+/**
+ * Modal for creating/editing custom prompts
+ */
+class CustomPromptModal extends Modal {
+    plugin: EpistemicTaggerPlugin;
+    prompt: CustomPrompt | null;
+    onSave: () => void;
+    
+    constructor(app: App, plugin: EpistemicTaggerPlugin, prompt: CustomPrompt | null, onSave: () => void) {
+        super(app);
+        this.plugin = plugin;
+        this.prompt = prompt;
+        this.onSave = onSave;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+
+        contentEl.createEl('h2', { text: this.prompt ? 'Edit Prompt' : 'Create Prompt' });
+
+        const promptData = this.prompt || {
+            id: '',
+            name: '',
+            description: '',
+            prompt: '',
+            targetCategory: undefined
+        };
+
+        // Prompt Name
+        new Setting(contentEl)
+            .setName('Prompt Name')
+            .setDesc('Name for this custom prompt')
+            .addText(text => text
+                .setValue(promptData.name)
+                .onChange(value => promptData.name = value)
+            );
+
+        // Description
+        new Setting(contentEl)
+            .setName('Description')
+            .setDesc('What does this prompt do?')
+            .addText(text => text
+                .setValue(promptData.description)
+                .onChange(value => promptData.description = value)
+            );
+
+        // Prompt Text
+        new Setting(contentEl)
+            .setName('Prompt')
+            .setDesc('The AI prompt to use (document content will be appended automatically)')
+            .addTextArea(text => {
+                text
+                    .setValue(promptData.prompt)
+                    .onChange(value => promptData.prompt = value);
+                text.inputEl.rows = 10;
+                text.inputEl.style.width = '100%';
+            });
+
+        // Target Category (optional)
+        const allProfiles = getAllProfiles(this.plugin.settings.customProfiles);
+        const activeProfile = allProfiles.find(p => p.name === this.plugin.settings.activeProfile);
+        
+        if (activeProfile) {
+            new Setting(contentEl)
+                .setName('Auto-Classify Results (Optional)')
+                .setDesc('Automatically classify the AI response to this category')
+                .addDropdown(dropdown => {
+                    dropdown.addOption('', 'None');
+                    activeProfile.categories.forEach(cat => {
+                        dropdown.addOption(cat.name, cat.displayName);
+                    });
+                    dropdown
+                        .setValue(promptData.targetCategory || '')
+                        .onChange(value => promptData.targetCategory = value || undefined);
+                });
+        }
+
+        // Save button
+        new Setting(contentEl)
+            .addButton(button => button
+                .setButtonText('Save')
+                .setCta()
+                .onClick(async () => {
+                    if (!promptData.name || !promptData.prompt) {
+                        new Notice('Please fill in name and prompt');
+                        return;
+                    }
+
+                    promptData.id = Date.now().toString();
+
+                    if (this.prompt) {
+                        // Edit existing
+                        const index = this.plugin.settings.customPrompts.findIndex(p => p.id === this.prompt!.id);
+                        if (index !== -1) {
+                            this.plugin.settings.customPrompts[index] = promptData as CustomPrompt;
+                        }
+                    } else {
+                        // Create new
+                        this.plugin.settings.customPrompts.push(promptData as CustomPrompt);
+                    }
+
+                    await this.plugin.saveSettings();
+                    new Notice(`Prompt ${this.prompt ? 'updated' : 'created'}: ${promptData.name}`);
+                    this.close();
+                    this.onSave();
+                })
+            )
+            .addButton(button => button
+                .setButtonText('Cancel')
+                .onClick(() => this.close())
+            );
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
     }
 }

@@ -49,6 +49,11 @@ export class EpistemicDecorationPlugin {
     }
 
     private buildDecorations(view: EditorView): DecorationSet {
+        // If invisible metadata is enabled, don't show any decorations
+        if (this.plugin.settings.enableInvisibleMetadata) {
+            return Decoration.none;
+        }
+
         if (!this.plugin.settings.showHighlights && !this.plugin.settings.showIcons) {
             return Decoration.none;
         }

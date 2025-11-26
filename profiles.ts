@@ -144,10 +144,19 @@ export const BUNDLE_PROFILES: BundleProfile[] = [
     }
 ];
 
-export function getProfileByName(name: string): BundleProfile | undefined {
+export function getProfileByName(name: string, customProfiles: BundleProfile[] = []): BundleProfile | undefined {
+    // Check custom profiles first
+    const customProfile = customProfiles.find(p => p.name === name);
+    if (customProfile) return customProfile;
+    
+    // Fall back to built-in profiles
     return BUNDLE_PROFILES.find(p => p.name === name);
 }
 
-export function getActiveProfile(profileName: string): BundleProfile {
-    return getProfileByName(profileName) || BUNDLE_PROFILES[0];
+export function getActiveProfile(profileName: string, customProfiles: BundleProfile[] = []): BundleProfile {
+    return getProfileByName(profileName, customProfiles) || BUNDLE_PROFILES[0];
+}
+
+export function getAllProfiles(customProfiles: BundleProfile[] = []): BundleProfile[] {
+    return [...BUNDLE_PROFILES, ...customProfiles];
 }
