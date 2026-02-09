@@ -122,15 +122,15 @@ class IconWidget extends WidgetType {
     }
 
     toDOM(): HTMLElement {
-        const span = document.createElement('span');
-        span.className = 'epistemic-icon';
-        span.textContent = this.icon;
-        span.style.color = this.color;
-        span.style.fontSize = '0.8em';
-        span.style.verticalAlign = 'super';
-        span.style.marginLeft = '2px';
-        span.style.cursor = 'help';
-        span.title = `Type: ${this.type}\nTagged by: ${this.taggedBy}\nConfidence: ${this.confidence}`;
+        const span = createSpan({
+            cls: 'epistemic-icon',
+            text: this.icon,
+            attr: {
+                'aria-label': `${this.type} (tagged by ${this.taggedBy}, confidence: ${this.confidence})`,
+                'data-tooltip-position': 'top',
+                style: `color: ${this.color};`
+            }
+        });
 
         return span;
     }

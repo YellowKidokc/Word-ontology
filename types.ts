@@ -78,10 +78,11 @@ export interface DatabaseClassification {
     start_offset: number;
     end_offset: number;
     type: string;
+    bundle_profile: string;
     color: string;
     icon: string;
     confidence: number;
     tagged_by: string;
-    tagged_at: Date;
+    tagged_at: string;
     notes?: string;
 }

@@ -33,8 +33,6 @@ export default class EpistemicTaggerPlugin extends Plugin {
     private classificationsCache: Map<string, DatabaseClassification[]> = new Map();
 
     async onload() {
-        console.log('Loading Epistemic Tagger plugin');
-
         await this.loadSettings();
 
         // Initialize database connection
@@ -71,7 +69,6 @@ export default class EpistemicTaggerPlugin extends Plugin {
     }
 
     async onunload() {
-        console.log('Unloading Epistemic Tagger plugin');
         await this.db.close();
     }
 
@@ -102,7 +99,7 @@ export default class EpistemicTaggerPlugin extends Plugin {
         if (selection && selection.trim() !== '') {
             menu.addItem((item) => {
                 item
-                    .setTitle('Classify Selection As...')
+                    .setTitle('Classify selection as...')
                     .setIcon('tag')
                     .setSection('epistemic');
 
@@ -115,7 +112,7 @@ export default class EpistemicTaggerPlugin extends Plugin {
             if (this.settings.anthropicApiKey) {
                 menu.addItem((item) => {
                     item
-                        .setTitle('Suggest Classification (AI)')
+                        .setTitle('Suggest classification (AI)')
                         .setIcon('sparkles')
                         .setSection('epistemic');
 
@@ -131,7 +128,7 @@ export default class EpistemicTaggerPlugin extends Plugin {
             // Auto-classify entire document
             menu.addItem((item) => {
                 item
-                    .setTitle('Auto-Classify Document (AI)')
+                    .setTitle('Auto-classify document (AI)')
                     .setIcon('wand')
                     .setSection('epistemic');
 
@@ -144,7 +141,7 @@ export default class EpistemicTaggerPlugin extends Plugin {
             if (this.settings.customPrompts && this.settings.customPrompts.length > 0) {
                 menu.addItem((item) => {
                     item
-                        .setTitle('Process Document With...')
+                        .setTitle('Process document with...')
                         .setIcon('brain')
                         .setSection('epistemic');
 
@@ -274,14 +271,14 @@ export default class EpistemicTaggerPlugin extends Plugin {
         menu.setNoIcon();
 
         menu.addItem((item) => {
-            item.setTitle(`Accept AI suggestion: ${category.icon} ${category.displayName}`);
+            item.setTitle(`Accept suggestion: ${category.icon} ${category.displayName}`);
             item.onClick(async () => {
                 await this.classifySelection(editor, view, selection, suggestedType);
             });
         });
 
         menu.addItem((item) => {
-            item.setTitle('Choose different type...');
+            item.setTitle('Choose a different type...');
             item.onClick(() => {
                 this.showClassificationMenu(editor, view, selection);
             });
@@ -469,7 +466,7 @@ export default class EpistemicTaggerPlugin extends Plugin {
         // Classify Selection
         this.addCommand({
             id: 'classify-selection',
-            name: 'Classify Selection',
+            name: 'Classify selection',
             editorCallback: (editor: Editor, view: MarkdownView) => {
                 const selection = editor.getSelection();
                 if (!selection) {
@@ -483,7 +480,7 @@ export default class EpistemicTaggerPlugin extends Plugin {
         // Switch Profile
         this.addCommand({
             id: 'switch-profile',
-            name: 'Switch Bundle Profile',
+            name: 'Switch bundle profile',
             callback: () => {
                 const menu = new Menu();
                 menu.setNoIcon();
@@ -509,7 +506,7 @@ export default class EpistemicTaggerPlugin extends Plugin {
         // View All Classifications
         this.addCommand({
             id: 'view-all-classifications',
-            name: 'View All Classifications in Note',
+            name: 'View all classifications in note',
             editorCallback: async (editor: Editor, view: MarkdownView) => {
                 if (!view.file) {
                     new Notice('No active file');
@@ -534,7 +531,7 @@ export default class EpistemicTaggerPlugin extends Plugin {
         // Export Classifications
         this.addCommand({
             id: 'export-classifications',
-            name: 'Export Classifications to CSV',
+            name: 'Export classifications to CSV',
             callback: async () => {
                 try {
                     const allClassifications = await this.db.getAllClassifications(
@@ -570,7 +567,7 @@ export default class EpistemicTaggerPlugin extends Plugin {
         // Generate Master Dashboards
         this.addCommand({
             id: 'generate-master-dashboards',
-            name: 'Generate Master Dashboards',
+            name: 'Generate master dashboards',
             callback: async () => {
                 try {
                     await generateMasterDashboards(

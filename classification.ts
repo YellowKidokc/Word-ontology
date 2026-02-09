@@ -1,4 +1,4 @@
-import { Notice } from 'obsidian';
+import { Notice, requestUrl } from 'obsidian';
 import { EpistemicClassification, BundleProfile, EpistemicType } from './types';
 
 /**
@@ -29,7 +29,8 @@ Text to classify:
 
 Return ONLY the category name (e.g., "axiom", "key_point", etc.) with no additional explanation.`;
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await requestUrl({
+            url: 'https://api.anthropic.com/v1/messages',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -46,11 +47,7 @@ Return ONLY the category name (e.g., "axiom", "key_point", etc.) with no additio
             })
         });
 
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        const data = response.json;
         const suggestedType = data.content[0].text.trim().toLowerCase();
 
         // Validate that the suggested type exists in the profile

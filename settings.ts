@@ -18,15 +18,14 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        // Header
-        containerEl.createEl('h2', { text: 'Epistemic Tagger Settings' });
-
         // Database Configuration Section
-        containerEl.createEl('h3', { text: 'Database Configuration' });
+        new Setting(containerEl)
+            .setName('Database configuration')
+            .setHeading();
 
         // PostgreSQL Connection String
         new Setting(containerEl)
-            .setName('PostgreSQL Connection URL')
+            .setName('PostgreSQL connection URL')
             .setDesc('Connection string for PostgreSQL database (e.g., postgresql://user:password@host:port/database)')
             .addText(text => text
                 .setPlaceholder('postgresql://postgres:password@192.168.1.215:5432/kj')
@@ -41,10 +40,10 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
 
         // Test Connection Button
         new Setting(containerEl)
-            .setName('Test Database Connection')
+            .setName('Test database connection')
             .setDesc('Verify that the database connection is working')
             .addButton(button => button
-                .setButtonText('Test Connection')
+                .setButtonText('Test connection')
                 .onClick(async () => {
                     button.setDisabled(true);
                     button.setButtonText('Testing...');
@@ -52,30 +51,30 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
                     try {
                         const isConnected = await this.plugin.db.testConnection();
                         if (isConnected) {
-                            new Notice('✓ Database connection successful!');
-                            button.setButtonText('Connected ✓');
+                            new Notice('Database connection successful');
+                            button.setButtonText('Connected');
                         } else {
-                            new Notice('✗ Database connection failed. Check console for details.');
-                            button.setButtonText('Failed ✗');
+                            new Notice('Database connection failed. Check console for details.');
+                            button.setButtonText('Failed');
                         }
                     } catch (error) {
-                        new Notice('✗ Database connection error: ' + error.message);
-                        button.setButtonText('Error ✗');
+                        new Notice('Database connection error: ' + (error as Error).message);
+                        button.setButtonText('Error');
                     }
 
-                    setTimeout(() => {
+                    window.setTimeout(() => {
                         button.setDisabled(false);
-                        button.setButtonText('Test Connection');
+                        button.setButtonText('Test connection');
                     }, 3000);
                 })
             );
 
         // Initialize Schema Button
         new Setting(containerEl)
-            .setName('Initialize Database Schema')
+            .setName('Initialize database schema')
             .setDesc('Create tables and seed initial data (safe to run multiple times)')
             .addButton(button => button
-                .setButtonText('Initialize Schema')
+                .setButtonText('Initialize schema')
                 .onClick(async () => {
                     button.setDisabled(true);
                     button.setButtonText('Initializing...');
@@ -83,33 +82,35 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
                     try {
                         await this.plugin.db.initializeSchema();
                         await this.plugin.db.seedTypes();
-                        new Notice('✓ Database schema initialized successfully!');
-                        button.setButtonText('Initialized ✓');
+                        new Notice('Database schema initialized successfully');
+                        button.setButtonText('Initialized');
                     } catch (error) {
-                        new Notice('✗ Schema initialization failed: ' + error.message);
-                        button.setButtonText('Failed ✗');
+                        new Notice('Schema initialization failed: ' + (error as Error).message);
+                        button.setButtonText('Failed');
                         console.error('Schema initialization error:', error);
                     }
 
-                    setTimeout(() => {
+                    window.setTimeout(() => {
                         button.setDisabled(false);
-                        button.setButtonText('Initialize Schema');
+                        button.setButtonText('Initialize schema');
                     }, 3000);
                 })
             );
 
         // Profile Configuration Section
-        containerEl.createEl('h3', { text: 'Bundle Profile' });
+        new Setting(containerEl)
+            .setName('Bundle profile')
+            .setHeading();
 
         // Active Profile
         new Setting(containerEl)
-            .setName('Active Profile')
+            .setName('Active profile')
             .setDesc('Select which bundle profile to use for classifications')
             .addDropdown(dropdown => {
                 const allProfiles = getAllProfiles(this.plugin.settings.customProfiles);
                 allProfiles.forEach(profile => {
                     const isCustom = this.plugin.settings.customProfiles.some(p => p.name === profile.name);
-                    dropdown.addOption(profile.name, `${profile.displayName}${isCustom ? ' (Custom)' : ''}`);
+                    dropdown.addOption(profile.name, `${profile.displayName}${isCustom ? ' (custom)' : ''}`);
                 });
                 dropdown
                     .setValue(this.plugin.settings.activeProfile)
@@ -135,18 +136,23 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
             const categoriesEl = profileInfoEl.createEl('ul');
             activeProfile.categories.forEach(cat => {
                 const li = categoriesEl.createEl('li');
-                li.innerHTML = `<span style="color: ${cat.color}">${cat.icon} ${cat.displayName}</span> - ${cat.description}`;
+                const colorSpan = li.createSpan({ cls: 'epistemic-category-label' });
+                colorSpan.style.color = cat.color;
+                colorSpan.setText(`${cat.icon} ${cat.displayName}`);
+                li.appendText(` - ${cat.description}`);
             });
         }
 
         // Custom Profiles Management
-        containerEl.createEl('h3', { text: 'Custom Profiles' });
-        
         new Setting(containerEl)
-            .setName('Create Custom Profile')
+            .setName('Custom profiles')
+            .setHeading();
+
+        new Setting(containerEl)
+            .setName('Create custom profile')
             .setDesc('Create your own classification profile with custom categories')
             .addButton(button => button
-                .setButtonText('Create Profile')
+                .setButtonText('Create profile')
                 .onClick(() => {
                     new CustomProfileModal(this.app, this.plugin, null, () => this.display()).open();
                 })
@@ -178,11 +184,13 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
         }
 
         // Visual Options Section
-        containerEl.createEl('h3', { text: 'Visual Options' });
+        new Setting(containerEl)
+            .setName('Visual options')
+            .setHeading();
 
         // Show Highlights
         new Setting(containerEl)
-            .setName('Show Highlights')
+            .setName('Show highlights')
             .setDesc('Display colored highlights for classified text')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.showHighlights)
@@ -195,7 +203,7 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
 
         // Show Icons
         new Setting(containerEl)
-            .setName('Show Icons')
+            .setName('Show icons')
             .setDesc('Display superscript icons next to classified text')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.showIcons)
@@ -208,7 +216,7 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
 
         // Highlight Opacity
         new Setting(containerEl)
-            .setName('Highlight Opacity')
+            .setName('Highlight opacity')
             .setDesc('Transparency level for highlights (0.0 - 1.0)')
             .addSlider(slider => slider
                 .setLimits(0, 1, 0.05)
@@ -222,7 +230,9 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
             );
 
         // User Configuration Section
-        containerEl.createEl('h3', { text: 'User Configuration' });
+        new Setting(containerEl)
+            .setName('User')
+            .setHeading();
 
         // Username
         new Setting(containerEl)
@@ -238,11 +248,13 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
             );
 
         // AI Configuration Section
-        containerEl.createEl('h3', { text: 'AI Assistant (Optional)' });
+        new Setting(containerEl)
+            .setName('AI assistant (optional)')
+            .setHeading();
 
         // Anthropic API Key
         new Setting(containerEl)
-            .setName('Anthropic API Key')
+            .setName('Anthropic API key')
             .setDesc('API key for AI-assisted classification (optional)')
             .addText(text => {
                 text
@@ -256,13 +268,15 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
             });
 
         // Custom Prompts Section
-        containerEl.createEl('h3', { text: 'Custom AI Prompts' });
-        
         new Setting(containerEl)
-            .setName('Create Custom Prompt')
+            .setName('Custom AI prompts')
+            .setHeading();
+
+        new Setting(containerEl)
+            .setName('Create custom prompt')
             .setDesc('Create custom AI prompts for document processing')
             .addButton(button => button
-                .setButtonText('Create Prompt')
+                .setButtonText('Create prompt')
                 .onClick(() => {
                     new CustomPromptModal(this.app, this.plugin, null, () => this.display()).open();
                 })
@@ -294,10 +308,12 @@ export class EpistemicTaggerSettingTab extends PluginSettingTab {
         }
 
         // Invisible Metadata Option
-        containerEl.createEl('h3', { text: 'Advanced Options' });
-        
         new Setting(containerEl)
-            .setName('Enable Invisible Metadata')
+            .setName('Advanced')
+            .setHeading();
+
+        new Setting(containerEl)
+            .setName('Enable invisible metadata')
             .setDesc('Store classifications invisibly (database only, no visual indicators in editor)')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.enableInvisibleMetadata)
@@ -318,7 +334,7 @@ class CustomProfileModal extends Modal {
     plugin: EpistemicTaggerPlugin;
     profile: BundleProfile | null;
     onSave: () => void;
-    
+
     constructor(app: App, plugin: EpistemicTaggerPlugin, profile: BundleProfile | null, onSave: () => void) {
         super(app);
         this.plugin = plugin;
@@ -330,7 +346,9 @@ class CustomProfileModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
 
-        contentEl.createEl('h2', { text: this.profile ? 'Edit Profile' : 'Create Profile' });
+        new Setting(contentEl)
+            .setName(this.profile ? 'Edit profile' : 'Create profile')
+            .setHeading();
 
         const profileData = this.profile || {
             id: '',
@@ -342,7 +360,7 @@ class CustomProfileModal extends Modal {
 
         // Profile Name
         new Setting(contentEl)
-            .setName('Profile Name')
+            .setName('Profile name')
             .setDesc('Internal name (lowercase, no spaces)')
             .addText(text => text
                 .setValue(profileData.name)
@@ -351,7 +369,7 @@ class CustomProfileModal extends Modal {
 
         // Display Name
         new Setting(contentEl)
-            .setName('Display Name')
+            .setName('Display name')
             .setDesc('Human-readable name')
             .addText(text => text
                 .setValue(profileData.displayName)
@@ -367,8 +385,11 @@ class CustomProfileModal extends Modal {
                 .onChange(value => profileData.description = value)
             );
 
-        contentEl.createEl('h3', { text: 'Categories' });
-        contentEl.createEl('p', { 
+        new Setting(contentEl)
+            .setName('Categories')
+            .setHeading();
+
+        contentEl.createEl('p', {
             text: 'Add classification categories for this profile. You can add them after creating the profile.',
             cls: 'setting-item-description'
         });
@@ -422,7 +443,7 @@ class CustomPromptModal extends Modal {
     plugin: EpistemicTaggerPlugin;
     prompt: CustomPrompt | null;
     onSave: () => void;
-    
+
     constructor(app: App, plugin: EpistemicTaggerPlugin, prompt: CustomPrompt | null, onSave: () => void) {
         super(app);
         this.plugin = plugin;
@@ -434,7 +455,9 @@ class CustomPromptModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
 
-        contentEl.createEl('h2', { text: this.prompt ? 'Edit Prompt' : 'Create Prompt' });
+        new Setting(contentEl)
+            .setName(this.prompt ? 'Edit prompt' : 'Create prompt')
+            .setHeading();
 
         const promptData = this.prompt || {
             id: '',
@@ -446,7 +469,7 @@ class CustomPromptModal extends Modal {
 
         // Prompt Name
         new Setting(contentEl)
-            .setName('Prompt Name')
+            .setName('Prompt name')
             .setDesc('Name for this custom prompt')
             .addText(text => text
                 .setValue(promptData.name)
@@ -471,16 +494,16 @@ class CustomPromptModal extends Modal {
                     .setValue(promptData.prompt)
                     .onChange(value => promptData.prompt = value);
                 text.inputEl.rows = 10;
-                text.inputEl.style.width = '100%';
+                text.inputEl.addClass('epistemic-prompt-textarea');
             });
 
         // Target Category (optional)
         const allProfiles = getAllProfiles(this.plugin.settings.customProfiles);
         const activeProfile = allProfiles.find(p => p.name === this.plugin.settings.activeProfile);
-        
+
         if (activeProfile) {
             new Setting(contentEl)
-                .setName('Auto-Classify Results (Optional)')
+                .setName('Auto-classify results (optional)')
                 .setDesc('Automatically classify the AI response to this category')
                 .addDropdown(dropdown => {
                     dropdown.addOption('', 'None');
