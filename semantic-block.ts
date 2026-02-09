@@ -45,7 +45,7 @@ export interface SemanticAnnotation {
     confidence: number; // 0.0 to 1.0
     theory?: string; // Optional theory assignment
     tags: string[]; // Array of tags
-    properties: Record<string, any>; // Kind-specific additional data
+    properties: Record<string, unknown>; // Kind-specific additional data
 }
 
 /**
@@ -61,7 +61,7 @@ export interface SemanticRelationship {
     created: string;
     createdBy: string;
     bidirectional: boolean;
-    properties: Record<string, any>;
+    properties: Record<string, unknown>;
 }
 
 /**
@@ -76,7 +76,7 @@ export interface SemanticMetadata {
     lastAiModel?: string;
     coherenceContribution?: number;
     flags: string[];
-    customFields: Record<string, any>;
+    customFields: Record<string, unknown>;
 }
 
 /**
@@ -264,11 +264,13 @@ export function annotationToClassification(
         start_offset: annotation.start,
         end_offset: annotation.end,
         type: annotation.kind,
-        bundle_profile: annotation.properties?.profile || profile,
+        bundle_profile: (annotation.properties?.profile as string) || profile,
+        color: '',
+        icon: '',
         tagged_by: annotation.createdBy,
         tagged_at: annotation.created,
         confidence: annotation.confidence,
-        notes: annotation.properties?.notes
+        notes: annotation.properties?.notes as string | undefined
     };
 }
 
@@ -319,7 +321,8 @@ export async function readSemanticBlockFromFile(
 
 /**
  * Write a semantic block back to a file in the vault.
- * This updates the file with the new semantic block embedded at the end.
+ * Uses vault.process() for atomic read-modify-write to prevent conflicts
+ * when the file may be open in the editor.
  */
 export async function writeSemanticBlockToFile(
     vault: Vault,
@@ -328,15 +331,11 @@ export async function writeSemanticBlockToFile(
 ): Promise<void> {
     // Update the modified timestamp
     block.modified = new Date().toISOString();
-    
-    // Read current content
-    const content = await vault.read(file);
-    
-    // Embed the semantic block
-    const newContent = embedSemanticBlock(content, block);
-    
-    // Write back to file
-    await vault.modify(file, newContent);
+
+    // Use vault.process() for atomic read-modify-write
+    await vault.process(file, (content) => {
+        return embedSemanticBlock(content, block);
+    });
 }
 
 /**

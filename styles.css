@@ -3,7 +3,7 @@
 /* Highlight base styles */
 .epistemic-highlight {
     cursor: help;
-    border-radius: 2px;
+    border-radius: var(--radius-s);
     transition: opacity 0.2s ease;
 }
 
@@ -11,11 +11,15 @@
     opacity: 0.8;
 }
 
-/* Icon styles */
+/* Icon styles (moved from inline JS) */
 .epistemic-icon {
     font-weight: bold;
     user-select: none;
     pointer-events: none;
+    font-size: var(--font-smallest);
+    vertical-align: super;
+    margin-left: 2px;
+    cursor: help;
 }
 
 /* Profile-specific highlight colors */
@@ -72,19 +76,19 @@
 
 /* Settings page styles */
 .epistemic-profile-info {
-    margin: 1em 0;
-    padding: 1em;
+    margin: var(--size-4-4) 0;
+    padding: var(--size-4-4);
     background-color: var(--background-secondary);
-    border-radius: 4px;
+    border-radius: var(--radius-m);
 }
 
 .epistemic-profile-info ul {
-    margin: 0.5em 0;
-    padding-left: 1.5em;
+    margin: var(--size-4-2) 0;
+    padding-left: var(--size-4-6);
 }
 
 .epistemic-profile-info li {
-    margin: 0.3em 0;
+    margin: var(--size-4-1) 0;
 }
 
 /* Context menu styles */
@@ -97,28 +101,24 @@
     position: absolute;
     background-color: var(--background-primary);
     border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 0.5em;
-    font-size: 0.9em;
-    z-index: 1000;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border-radius: var(--radius-m);
+    padding: var(--size-4-2);
+    font-size: var(--font-ui-small);
+    z-index: var(--layer-popover);
+    box-shadow: var(--shadow-s);
 }
 
 .epistemic-tooltip-type {
-    font-weight: bold;
-    margin-bottom: 0.3em;
+    font-weight: var(--font-semibold);
+    margin-bottom: var(--size-4-1);
 }
 
 .epistemic-tooltip-meta {
-    font-size: 0.85em;
+    font-size: var(--font-ui-smaller);
     color: var(--text-muted);
 }
 
-/* Dark mode adjustments */
-.theme-dark .epistemic-highlight {
-    opacity: 0.8;
-}
-
-.theme-dark .epistemic-highlight:hover {
-    opacity: 1;
+/* Prompt textarea in settings modal */
+.epistemic-prompt-textarea {
+    width: 100%;
 }

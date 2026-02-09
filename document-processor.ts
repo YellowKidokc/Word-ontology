@@ -1,4 +1,4 @@
-import { Notice, Editor, MarkdownView } from 'obsidian';
+import { Notice, Editor, MarkdownView, requestUrl } from 'obsidian';
 import { CustomPrompt, BundleProfile } from './types';
 
 /**
@@ -26,7 +26,8 @@ export async function processDocumentWithAI(
     try {
         const fullPrompt = `${prompt.prompt}\n\nDocument to analyze:\n\n${documentContent}`;
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await requestUrl({
+            url: 'https://api.anthropic.com/v1/messages',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -43,11 +44,7 @@ export async function processDocumentWithAI(
             })
         });
 
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        const data = response.json;
         const result = data.content[0].text.trim();
 
         return result;
@@ -96,7 +93,8 @@ Return your response as a JSON array with this format:
 
 Only return the JSON array, no additional explanation.`;
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await requestUrl({
+            url: 'https://api.anthropic.com/v1/messages',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -113,11 +111,7 @@ Only return the JSON array, no additional explanation.`;
             })
         });
 
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        const data = response.json;
         const resultText = data.content[0].text.trim();
         
         // Extract JSON from response (handle markdown code blocks)
@@ -144,7 +138,7 @@ Only return the JSON array, no additional explanation.`;
                 startOffset,
                 endOffset: startOffset + item.text.length
             };
-        }).filter((item: any) => item !== null);
+        }).filter((item: { text: string; category: string; startOffset: number; endOffset: number } | null): item is { text: string; category: string; startOffset: number; endOffset: number } => item !== null);
 
         return result;
     } catch (error) {

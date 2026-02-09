@@ -273,31 +273,6 @@ export class DatabaseService {
         }
     }
 
-    async getAllClassifications(): Promise<DatabaseClassification[]> {
-        if (!this.pool) {
-            throw new Error('Database pool not initialized');
-        }
-
-        try {
-            const result = await this.pool.query(`
-                SELECT
-                    s.id, s.content, s.start_offset, s.end_offset,
-                    s.source_file, s.bundle_profile,
-                    t.name as type, t.color, t.icon,
-                    st.confidence, st.tagged_by, st.tagged_at, st.notes
-                FROM epistemic.statements s
-                JOIN epistemic.statement_types st ON s.id = st.statement_id
-                JOIN epistemic.types t ON st.type_id = t.id
-                ORDER BY s.source_file, s.start_offset
-            `);
-
-            return result.rows;
-        } catch (error) {
-            console.error('Failed to get all classifications:', error);
-            throw error;
-        }
-    }
-
     async deleteClassification(classificationId: string): Promise<void> {
         if (!this.pool) {
             throw new Error('Database pool not initialized');
@@ -314,24 +289,39 @@ export class DatabaseService {
         }
     }
 
-    async getAllClassifications(profile: string): Promise<DatabaseClassification[]> {
+    async getAllClassifications(profile?: string): Promise<DatabaseClassification[]> {
         if (!this.pool) {
             throw new Error('Database pool not initialized');
         }
 
         try {
+            if (profile) {
+                const result = await this.pool.query(`
+                    SELECT
+                        s.id, s.content, s.source_file, s.start_offset, s.end_offset,
+                        s.bundle_profile,
+                        t.name as type, t.color, t.icon,
+                        st.confidence, st.tagged_by, st.tagged_at, st.notes
+                    FROM epistemic.statements s
+                    JOIN epistemic.statement_types st ON s.id = st.statement_id
+                    JOIN epistemic.types t ON st.type_id = t.id
+                    WHERE s.bundle_profile = $1
+                    ORDER BY s.created_at DESC
+                `, [profile]);
+                return result.rows;
+            }
+
             const result = await this.pool.query(`
                 SELECT
                     s.id, s.content, s.source_file, s.start_offset, s.end_offset,
+                    s.bundle_profile,
                     t.name as type, t.color, t.icon,
                     st.confidence, st.tagged_by, st.tagged_at, st.notes
                 FROM epistemic.statements s
                 JOIN epistemic.statement_types st ON s.id = st.statement_id
                 JOIN epistemic.types t ON st.type_id = t.id
-                WHERE s.bundle_profile = $1
-                ORDER BY s.created_at DESC
-            `, [profile]);
-
+                ORDER BY s.source_file, s.start_offset
+            `);
             return result.rows;
         } catch (error) {
             console.error('Failed to get all classifications:', error);
